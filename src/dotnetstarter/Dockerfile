@@ -1,19 +1,16 @@
 FROM microsoft/dotnet 
 
-# Install git
-RUN apt-get install git -y
+# Set ASPNETCORE_URLS
+ENV ASPNETCORE_URLS=https://*:8080
 
-# Clone the source code
-RUN git clone -b ssl https://github.com/cmendible/aspnet-core-helloworld.git
+# Switch to root for changing dir ownership/permissions
+USER 0
 
-# Set our working folder
-WORKDIR aspnet-core-helloworld/src/dotnetstarter
+# Copy the binaries
+COPY /bin/release/netcoreapp1.0/publish app
 
-# Restore nuget packages
-RUN dotnet restore
-
-# Build the application using dotnet!!!
-RUN dotnet build
+# Change to app directory
+WORKDIR app
 
 # Set password for the certificate as 1234
 # I'm using Environment Variable here to simplify the .NET Core sample.
@@ -26,8 +23,16 @@ RUN openssl req -sha256 -new -key server.key -out server.csr -subj '/CN=localhos
 RUN openssl x509 -req -sha256 -days 365 -in server.csr -signkey server.key -out server.crt
 RUN openssl pkcs12 -export -out cert.pfx -inkey server.key -in server.crt -certfile server.crt -passout pass:${certPassword}
 
-# Expose port 443 for the application.
-EXPOSE 443
+# In order to drop the root user, we have to make some directories world
+# writable as OpenShift default security model is to run the container under
+# random UID.
+RUN chown -R 1001:0 /app && chmod -R og+rwx /app
+
+# Expose port 8080 for the application.
+EXPOSE 8080
+
+# Run container by default as user with id 1001 (default)
+USER 1001
 
 # Start the application using dotnet!!!
-ENTRYPOINT dotnet run
+ENTRYPOINT dotnet dotnetstarter.dll

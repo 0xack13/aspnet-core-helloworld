@@ -32,11 +32,10 @@ public class Startup
     public static void Main(string[] args)
     {
         var host = new WebHostBuilder()
-            .UseKestrel((o) => 
+            .UseKestrel((o) =>
             {
                 o.UseHttps(new X509Certificate2(@"cert.pfx", Configuration["certPassword"]));
             })
-            .UseUrls("https://*:443")
             .UseContentRoot(Directory.GetCurrentDirectory())
             .UseStartup<Startup>()
             .Build();
